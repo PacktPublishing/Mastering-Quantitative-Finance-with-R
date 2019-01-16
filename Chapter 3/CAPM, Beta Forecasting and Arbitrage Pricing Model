@@ -1,2 +1,78 @@
 #CAPM, Beta Forecasting and Arbitrage Pricing Model
 #CAPM, Beta Forecasting and Arbitrage Pricing Model
+
+library(tseries)
+MyData <- read.csv(file="C:/Users/Administrator/Documents/R_Files/return.csv", header=TRUE, sep=",")
+exReturn <- read.csv(file="C:/Users/Administrator/Documents/R_Files/ExcessRt.csv", header=TRUE, sep=",")
+exReturn <- exReturn[,-1]
+boxplot(exReturn,main="Expected Return", xlab="Stock Picks", ylab="Return")
+
+
+# Compute Mean and Standard Deviation of Expected Return
+Mean=sapply(exReturn,mean)
+Rf = mean(MyData$T.Bills)
+paste("Market Free Retrun = ",Rf*100, "%")
+SD=sapply(exReturn,sd)
+cbind(Mean,SD)
+
+attach(exReturn)
+lm.MMM<- lm(MMM_ExcessR ~ NIFTY_ExcessR)
+summary(lm.MMM)
+
+plot(NIFTY_ExcessR,MMM_ExcessR, xlim=c(-0.20,0.20),ylim=c(-0.20,0.20),main="Beta")
+BetaMMM <- summary(lm.MMM)$coefficients[2, 1]
+abline(lm.MMM, col="blue")
+text(-0.2, 0.2, BetaMMM, pos = 4)
+
+Rstde <- summary(lm.MMM)$sigma
+
+paste("MMM Beta = ",BetaMMM)
+
+paste("MMM Standard Deviation = ",Rstde)
+
+coefs <- coef(lm.MMM)
+paste("alpha = ",coefs[1])
+
+paste("beta = ",coefs[2])
+
+
+lm.JNJ<- lm(JNJ_ExcessR ~ NIFTY_ExcessR)
+summary(lm.JNJ)
+plot(NIFTY_ExcessR,JNJ_ExcessR, xlim=c(-0.20,0.20),ylim=c(-0.20,0.20),main="Beta")
+abline(lm.JNJ, col="blue")
+BetaJNJ <- summary(lm.JNJ)$coefficients[2, 1]
+text(-0.2, 0.2, BetaJNJ, pos = 4)
+
+lm.PG<- lm(PG_ExcessR ~ NIFTY_ExcessR)
+summary(lm.PG)
+
+
+lm.WMT<- lm(WMT_ExcessR ~ NIFTY_ExcessR)
+summary(lm.WMT)
+
+plot(NIFTY_ExcessR,MSIL_ExcessR, xlim=c(-0.20,0.20),ylim=c(-0.20,0.20),main="Beta")
+abline(lm.MSIL, col="blue")
+BetaMSIL <- summary(lm.MSIL)$coefficients[2, 1]
+text(-0.2, 0.2, BetaMSIL, pos = 4)
+
+
+M <- cov(exReturn[,2:5])
+
+ERm = mean(exReturn$NIFTY_ExcessR)
+Rf = mean(MyData$T.Bills)
+ERMMM = Rf + BetaMMM*(ERm-Rf)
+ERJNJ = Rf + BetaJNJ*(ERm-Rf)
+ERPG = Rf + BetaPG*(ERm-Rf)
+ERMSIL = Rf + BetaMSIL*(ERm-Rf)
+
+ER <- c(ERMMM,ERJNJ,ERPG,ERMSIL)
+
+Eret <- matrix(ER, nrow=1)
+
+paste("Expected Return of MMM: ", ERMMM)
+
+
+
+
+
+
