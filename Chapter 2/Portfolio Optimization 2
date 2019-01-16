@@ -62,3 +62,174 @@ momentsReturnLog2Lin <- function(mu, Sigma) {
 tmp <- momentsReturnLog2Lin(mu_log, Sigma_log)
 mu_log_trans <- tmp$mu
 Sigma_log_trans <- tmp$Sigma
+
+
+
+
+
+# create function for GMVP
+portolioGMVP <- function(Sigma) {
+  ones <- rep(1, nrow(Sigma))
+  Sigma_inv_1 <- solve(Sigma, ones)  #same as: inv(Sigma) %*% ones
+  w <- (1/as.numeric(ones %*% Sigma_inv_1)) * Sigma_inv_1
+  return(w)
+}
+
+# compute the three versions of GMVP
+w_lin <- portolioGMVP(Sigma_lin)
+w_log <- portolioGMVP(Sigma_log)
+w_log_trans <- portolioGMVP(Sigma_log_trans)
+w_all <- cbind(w_lin, w_log, w_log_trans)
+
+# plot to compare the allocations
+barplot(t(w_all), col = c("darkblue","darkcyan", "darkgoldenrod"), legend = colnames(w_all), 
+        main = "Portfolio allocation", xlab = "stocks", ylab = "dollars", beside = TRUE)
+
+# compute returns of the three portfolios
+ret_all_trn <- xts(X_lin_trn %*% w_all, index(X_lin_trn))
+# compare them
+StdDev.annualized(ret_all_trn)
+
+colMeans(X_lin)
+
+apply(X_lin, 2, sd)
+
+periodicity(prices)
+#> Daily periodicity from 2013-01-02 to 2017-08-30
+
+# change periodicity of prices
+prices_weekly <- xts()
+for (i in 1:ncol(prices))
+  prices_weekly <- cbind(prices_weekly, Cl(to.weekly(prices[, i])))
+colnames(prices_weekly) <- colnames(prices)
+indexClass(prices_weekly) <- "Date"
+periodicity(prices_weekly)
+#> Weekly periodicity from 2013-01-04 to 2017-08-30
+head(prices_weekly)
+
+# recompute returns
+X_weekly_log <- CalculateReturns(prices_weekly, "log")[-1]
+X_weekly_lin <- CalculateReturns(prices_weekly)[-1]
+T_weekly <- nrow(X_weekly_log)  # number of weeks
+
+# split data into training and set data
+T_weekly_trn <- round(0.7*T_weekly)  # 70% of data
+X_weekly_log_trn <- X_weekly_log[1:T_weekly_trn, ]
+X_weekly_log_tst <- X_weekly_log[(T_weekly_trn+1):T_weekly, ]
+X_weekly_lin_trn <- X_weekly_lin[1:T_weekly_trn, ]
+X_weekly_lin_tst <- X_weekly_lin[(T_weekly_trn+1):T_weekly, ]
+
+# estimate mu and Sigma
+mu_weekly_lin <- colMeans(X_weekly_lin_trn)
+Sigma_weekly_lin <- cov(X_weekly_lin_trn)
+
+mu_weekly_log <- colMeans(X_weekly_log_trn)
+Sigma_weekly_log <- cov(X_weekly_log_trn)
+
+tmp <- momentsReturnLog2Lin(mu_weekly_log, Sigma_weekly_log)
+mu_weekly_log_trans <- tmp$mu
+Sigma_weekly_log_trans <- tmp$Sigma
+
+# compute GMVPs
+w_weekly_lin <- portolioGMVP(Sigma_weekly_lin)
+w_weekly_log <- portolioGMVP(Sigma_weekly_log)
+w_weekly_log_trans <- portolioGMVP(Sigma_weekly_log_trans)
+w_weekly_all <- cbind(w_weekly_lin, w_weekly_log, w_weekly_log_trans)
+barplot(t(w_weekly_all), col = c("darkblue","darkcyan", "darkgoldenrod"), legend = colnames(w_all), 
+        main = "Portfolio allocation for weekly returns", 
+        xlab = "stocks", ylab = "dollars", beside = TRUE)
+
+
+# compute weekly returns
+ret_weekly_all_trn <- xts(X_weekly_lin_trn %*% w_weekly_all, index(X_weekly_lin_trn))
+StdDev.annualized(ret_weekly_all_trn)
+
+# compute monthly returns
+ret_monthly_all_trn <- xts(X_monthly_lin_trn %*% w_monthly_all, index(X_monthly_lin_trn))
+StdDev.annualized(ret_monthly_all_trn)
+
+
+mu <- colMeans(X_log_trn)
+Sigma <- cov(X_log_trn)
+
+# a B&H portfolio is trivially the zero vector with a one on the stock held
+w_BnH <- diag(N)
+rownames(w_BnH) <- colnames(X_lin)
+colnames(w_BnH) <- paste0("BnH-", colnames(X_lin))
+w_BnH
+# compute returns of all B&H portfolios
+ret_BnH <- xts(X_lin %*% w_BnH, index(X_lin))
+ret_BnH_trn <- ret_BnH[1:T_trn, ]
+ret_BnH_tst <- ret_BnH[-c(1:T_trn), ]
+head(ret_BnH)
+
+
+# compute cumulative wealth
+wealth_arith_BnH_trn <- 1 + cumsum(ret_BnH_trn)  # initial budget of 1$
+wealth_geom_BnH_trn <- cumprod(1 + ret_BnH_trn)  # initial budget of 1$
+
+# performance measures
+table.AnnualizedReturns(ret_BnH_trn)
+
+table.AnnualizedReturns(ret_BnH_tst)
+
+
+table.DownsideRisk(ret_BnH_trn)
+
+# plots
+# same as: 
+#   plot(wealth_arith_BnH_trn[, 1], main = "Buy & Hold performance (not compounded)", ylab = "wealth")
+chart.CumReturns(ret_BnH_trn[, 1], main = "Buy & Hold performance (not compounded)", 
+                 geometric = FALSE, wealth.index = TRUE)
+
+# same as: 
+#   plot(wealth_geom_BnH_trn[, 1], main = "Buy & Hold performance (compounded)", ylab = "wealth")
+chart.CumReturns(ret_BnH_trn[, 1], main = "Buy & Hold performance (compounded)", 
+                 geometric = TRUE, wealth.index = TRUE)
+
+
+
+# more plots
+{ chart.CumReturns(ret_BnH, main = "Buy & Hold performance", 
+                   wealth.index = TRUE, legend.loc = "topleft", colorset = rich10equal)
+  addEventLines(xts("training", index(X_lin[T_trn])), srt=90, pos=2, lwd = 2, col = "darkblue") }
+
+
+chart.Boxplot(ret_BnH_trn)
+
+chart.RiskReturnScatter(ret_BnH_trn, symbolset = 21, bg = "red")
+
+w_unif <- rep(1/N, N)
+
+library(CVXR)
+
+portolioGMVP <- function(Sigma) {
+  w <- Variable(nrow(Sigma))
+  prob <- Problem(Minimize(quad_form(w, Sigma)), 
+                  constraints = list(w >= 0, sum(w) == 1))
+  result <- solve(prob)
+  return(as.vector(result$getValue(w)))
+}
+
+w_GMVP <- portolioGMVP(Sigma)
+
+
+portolioMarkowitz <- function(mu, Sigma, lmd = 0.5) {
+  w <- Variable(nrow(Sigma))
+  prob <- Problem(Maximize(t(mu) %*% w - lmd*quad_form(w, Sigma)),
+                  constraints = list(w >= 0, sum(w) == 1))
+  result <- solve(prob)
+  return(as.vector(result$getValue(w)))
+}
+
+w_Markowitz <- portolioMarkowitz(mu, Sigma, lmd = 2)
+
+portolioMaxSharpeRatio <- function(mu, Sigma) {
+  w_ <- Variable(nrow(Sigma))
+  prob <- Problem(Minimize(quad_form(w_, Sigma)),
+                  constraints = list(w_ >= 0, t(mu) %*% w_ == 1))
+  result <- solve(prob)
+  return(as.vector(result$getValue(w_)/sum(result$getValue(w_))))
+}
+
+w_maxSR <- portolioMaxSharpeRatio(mu, Sigma)
