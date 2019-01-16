@@ -1,0 +1,42 @@
+Call <- function(S, K, r, T, sigma) {
+d1 <- (log(S/K) + (r + sigma^2/2)*T) / (sigma*sqrt(T))
+d2 <- d1 - sigma*sqrt(T)
+S * pnorm(d1) - K*exp(-r*T)*pnorm(d2)
+}
+
+Put <- function(S, K, r, T, sigma) {
+d1 <- (log(S/K) + (r + sigma^2/2)*T) / (sigma*sqrt(T))
+d2 <- d1 - sigma*sqrt(T)
+-S * pnorm(-d1) + K*exp(-r*T)*pnorm(-d2)
+}
+
+
+
+library(fOptions)
+GBSOption(TypeFlag = "p", S = 130, X =140, Time = 1/4, r = 0.02,sigma = 0.22, b = 0.02)
+
+library(fOptions)
+> GBSOption(TypeFlag = "p", S = 130, X =140, Time = 1/4, r = 0.02,sigma = 0.22, b = 0.02)
+
+Title:
+Black Scholes Option Valuation
+
+Call:
+GBSOption(TypeFlag = "p", S = 130, X = 140, Time = 1/4, r = 0.02,
+b = 0.02, sigma = 0.22)
+
+Parameters:
+Value:
+TypeFlag p
+S 130
+X 140
+Time 0.25
+r 0.02
+b 0.02
+sigma 0.22
+
+Option Price:
+11.68386
+
+Description:
+Wed Nov 28 06:37:24 2018
