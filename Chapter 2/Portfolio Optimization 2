@@ -1,0 +1,64 @@
+# Portfolio Optimization
+library(xts)
+library(quantmod)
+library(PerformanceAnalytics)
+
+# set begin-end date and stock namelist
+begin_date <- "2013-01-01"
+end_date <- "2017-08-31"
+stock_namelist <- c("AAPL", "AMD", "ADI",  "ABBV", "AET", "A",  "APD", "AA","CF")
+
+# download data from YahooFinance
+prices <- xts()
+for (stock_index in 1:length(stock_namelist))
+  prices <- cbind(prices, Ad(getSymbols(stock_namelist[stock_index], 
+                                        from = begin_date, to = end_date, auto.assign = FALSE)))
+colnames(prices) <- stock_namelist
+indexClass(prices) <- "Date"
+str(prices)
+# compute log-returns and linear returns
+X_log <- diff(log(prices))[-1]
+X_lin <- (prices/lag(prices) - 1)[-1]
+
+# or alternatively...
+X_log <- CalculateReturns(prices, "log")[-1]
+X_lin <- CalculateReturns(prices)[-1]
+
+N <- ncol(X_log)  # number of stocks
+T <- nrow(X_log)  # number of days
+
+# split data into training and test data
+T_trn <- round(0.7*T)  # 70% of data
+X_log_trn <- X_log[1:T_trn, ]
+X_log_tst <- X_log[(T_trn+1):T, ]
+X_lin_trn <- X_lin[1:T_trn, ]
+X_lin_tst <- X_lin[(T_trn+1):T, ]
+
+
+# Method 1: directly from linear returns
+mu_lin <- colMeans(X_lin_trn)
+X_ <- X_lin_trn - matrix(mu_lin, T_trn, N, byrow = TRUE)  #remove mean
+Sigma_lin <- 1/(T_trn-1) * t(X_) %*% X_
+# or more conveniently:
+Sigma_lin_ <- cov(X_lin_trn)
+norm(Sigma_lin - Sigma_lin_, "F")  # sanity check
+#> [1] 7.872724e-19
+
+# Method 2: directly from log returns
+mu_log <- colMeans(X_log_trn)
+Sigma_log <- cov(X_log_trn)
+
+# Method 3: from log returns plus transformation
+momentsReturnLog2Lin <- function(mu, Sigma) {
+  K <- ncol(Sigma)
+  mu_ <- exp(mu + 0.5*diag(Sigma)) - 1
+  Sigma_ <- matrix(NA, nrow=K, ncol=K)
+  for(ii in 1:K)
+    for(jj in 1:K)
+      Sigma_[ii,jj] <- exp( mu[ii] + mu[jj] + 0.5*(Sigma[ii,ii]+Sigma[jj,jj]) ) * (exp(Sigma[ii,jj])-1)
+  return( list(mu=mu_, Sigma=Sigma_) )
+}
+
+tmp <- momentsReturnLog2Lin(mu_log, Sigma_log)
+mu_log_trans <- tmp$mu
+Sigma_log_trans <- tmp$Sigma
