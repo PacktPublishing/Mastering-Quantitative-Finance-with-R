@@ -18,6 +18,7 @@ key business decisions in financial industries.
 
 
 LEARNING OUTCOME - WHAT WILL THE READER LEARN AND DO?
+
 1. Understand economic value of analyzing high-frequency financial data
 2. Learn to Code Derivatives used by trading desks
 3.Construct signals for intraday observations
