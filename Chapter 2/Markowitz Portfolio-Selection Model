@@ -1,0 +1,25 @@
+#Portfolio Optimization
+library(PortfolioAnalytics)
+library(quantmod)
+library(PerformanceAnalytics)
+library(zoo)
+library(plotly)
+
+# Get data
+getSymbols(c("SBIN.NS","RELIANCE.NS","MARUTI.NS","INFY.NS","TCS.NS","FB"))
+
+# Assign to dataframe
+# Get adjusted prices
+prices.data <- merge.zoo(SBIN.NS[,6], RELIANCE.NS[,6], MARUTI.NS[,6], INFY.NS[,6], TCS.NS[,6], FB[,6])
+
+# Calculate returns
+returns.data <- CalculateReturns(prices.data)
+returns.data <- na.omit(returns.data)
+
+# Set names
+colnames(returns.data) <- c("SBIN.NS","RELIANCE.NS","MARUTI.NS","INFY.NS","TCS.NS","FB")
+
+# Save mean return vector and sample covariance matrix
+meanReturns <- colMeans(returns.data)
+covMat <- cov(returns.data)
+
