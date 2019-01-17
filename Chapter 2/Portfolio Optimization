@@ -24,3 +24,65 @@ colnames(returns.data) <- c("SBIN.NS","RELIANCE.NS","MARUTI.NS","INFY.NS","TCS.N
 meanReturns <- colMeans(returns.data)
 covMat <- cov(returns.data)
 
+
+
+
+
+#Return and Performance mesurement of Portfolio Return
+
+
+library("quantmod")
+library("PerformanceAnalytics")
+library(e1071)	 #For the skewness command
+#Model paramters
+nLookback <- 30 #When calculating the rolling skew use the nLookback number of days
+UptrendSkewLimit <- 0.3 #If the rolling skew is greater than this value go long
+DowntrendSkewLimit <- -0.5 #If the rolling skew is lower than this value go short
+#If the rolling skew is between the two limits do nothing, the skew is too weak to indicate a trend
+#Script parameters
+symbol <- "^GSPC"	 #Symbol
+#Specify dates for downloading data
+startDate = as.Date("2005-01-01") #Specify what date to get the prices from
+symbolData <- new.env() #Make a new environment for quantmod to store data in
+getSymbols(symbol, env = symbolData, src = "yahoo", from = startDate)
+mktdata <- eval(parse(text=paste("symbolData$",sub("^","",symbol,fixed=TRUE))))
+mktdata <- head(mktdata,-1) #Hack to fix some stupid duplicate date problem with yahoo
+dayOpClRet <- Cl(mktdata)/Op(mktdata)	- 1
+cat("About to calculate the rolling skew")
+#Lets calculate the rolling skew
+#Lag the rolling skew by one day so the skew measured at the close of day T is sifted to day T+1
+#The skew will be used to determine the trade at the open
+rollingSkew <- Lag(rollapply(dayOpClRet,FUN="skewness",width=nLookback, align="right"),1)
+#Possible improvement - Do a exponential moving average on the skew signal to smooth it
+#rollingSkew <- EMA(rollingSkew,n=nLookback)
+longSignals <- (rollingSkew>UptrendSkewLimit)
+longReturns <- longSignals*dayOpClRet
+shortSignals <- (rollingSkew<DowntrendSkewLimit)
+shortReturns <- -1*shortSignals*dayOpClRet
+totalReturns <- longReturns + shortReturns
+#Uncomment the line below to increase the position size for larger skews
+#totalReturns <- totalReturns * (abs(rollingSkew)+1)
+totalReturns[is.na(totalReturns)] <- 0
+LongS <- rgb(255/255, 0/255, 0/255, 0.1)
+LongSS <- rgb(0/255, 255/255, 0/255, 0.1)
+dev.new()
+par(mfrow=c(3,1))
+plot(Cl(mktdata), main="Close of S&P 500")
+lines(longSignals*max(Cl(mktdata)), col=(LongSS),type="h")
+lines(shortSignals*max(Cl(mktdata)), col=(LongS),type="h")
+plot(rollingSkew)
+abline(UptrendSkewLimit,0,col="green")
+abline(DowntrendSkewLimit,0,col="red")
+plot(cumsum(totalReturns), main="Cumulative Returns - Trend Following")
+#### Performance Analysis ###
+colnames(dayOpClRet) <- "Long IndexOpCloseRet"
+zooTradeVec <- cbind(as.zoo(totalReturns),as.zoo(dayOpClRet)) #Convert to zoo object
+colnames(zooTradeVec) <- c("Trend Following","S&P500 Long Open Close Returns")
+zooTradeVec <- na.omit(zooTradeVec)
+#Lets see how all the strategies faired against the index
+dev.new()
+charts.PerformanceSummary(zooTradeVec,main="Performance of Trend Following",geometric=FALSE)
+#Calculate the sharpe ratio
+cat("Sharpe Ratio")
+print(SharpeRatio.annualized(zooTradeVec))
+
